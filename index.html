@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Slide & Fun – Free Sliding Tile Puzzle Game</title>
+
+<!-- SEO Meta Tags -->
+<meta name="description" content="Slide & Fun is a free mobile-friendly sliding tile puzzle game. Challenge yourself with 3×3, 4×4, 5×5, and 6×6 grids. Play instantly — no download needed!">
+<meta name="keywords" content="sliding puzzle, tile puzzle, number puzzle, free puzzle game, brain game, mobile puzzle">
+<meta name="author" content="Slide & Fun">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://slide-and-fun.netlify.app/">
+
+<!-- Open Graph (for sharing on social media) -->
+<meta property="og:title" content="Slide & Fun – Sliding Tile Puzzle Game">
+<meta property="og:description" content="Free online sliding tile puzzle. 4 difficulty levels, timer, and best score tracking. Play now!">
+<meta property="og:url" content="https://slide-and-fun.netlify.app/">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://slide-and-fun.netlify.app/og-image.png">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Slide & Fun – Sliding Tile Puzzle Game">
+<meta name="twitter:description" content="Free online sliding tile puzzle. Play now — no download needed!">
+
+<!-- Theme color for mobile browsers -->
+<meta name="theme-color" content="#0f0f14">
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --bg: #0f0f14;
+    --surface: #1a1a24;
+    --tile: #252535;
+    --tile-border: #353550;
+    --accent: #7c6af7;
+    --accent2: #f7c56a;
+    --text: #e8e8f0;
+    --muted: #888899;
+    --win: #6af7a8;
+    --grid-gap: 6px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 24px 16px 32px;
+    user-select: none;
+  }
+
+  header {
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  h1 {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  .stats {
+    width: 100%;
+    max-width: 400px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .stat-box {
+    background: var(--surface);
+    border: 1px solid var(--tile-border);
+    border-radius: 12px;
+    padding: 12px 8px;
+    text-align: center;
+  }
+
+  .stat-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .stat-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .stat-value.accent { color: var(--accent2); }
+
+  .difficulty-row {
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .diff-btn {
+    flex: 1;
+    padding: 9px 0;
+    border-radius: 9px;
+    border: 1.5px solid var(--tile-border);
+    background: var(--surface);
+    color: var(--muted);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .diff-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(124,106,247,0.12);
+  }
+
+  #board-wrap {
+    width: 100%;
+    max-width: 400px;
+    aspect-ratio: 1;
+    position: relative;
+    margin-bottom: 24px;
+  }
+
+  #board {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    gap: var(--grid-gap);
+    background: var(--surface);
+    border: 1.5px solid var(--tile-border);
+    border-radius: 18px;
+    padding: var(--grid-gap);
+  }
+
+  .tile {
+    background: var(--tile);
+    border: 1.5px solid var(--tile-border);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.12s ease, background 0.15s, box-shadow 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .tile:active { transform: scale(0.94); }
+
+  .tile.correct {
+    background: rgba(106, 247, 168, 0.13);
+    border-color: rgba(106, 247, 168, 0.35);
+    color: var(--win);
+  }
+
+  .tile.empty {
+    background: transparent;
+    border: 1.5px dashed rgba(255,255,255,0.07);
+    cursor: default;
+  }
+
+  .tile.empty:active { transform: none; }
+
+  .tile::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 40%;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.06), transparent);
+    border-radius: 8px 8px 0 0;
+    pointer-events: none;
+  }
+
+  .tile .tile-num { position: relative; z-index: 1; }
+
+  .tile .tile-dot {
+    position: absolute;
+    bottom: 6px;
+    right: 8px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.4;
+  }
+
+  .tile.correct .tile-dot { background: var(--win); opacity: 0.6; }
+
+  #actions {
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 15px 0;
+    border-radius: 13px;
+    border: none;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.1s;
+    letter-spacing: 0.01em;
+  }
+
+  .btn:active { transform: scale(0.97); opacity: 0.85; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--muted);
+    border: 1.5px solid var(--tile-border);
+  }
+
+  /* Sound toggle */
+  #sound-row {
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .sound-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .toggle {
+    width: 40px;
+    height: 22px;
+    background: var(--tile-border);
+    border-radius: 11px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    border: none;
+    padding: 0;
+  }
+
+  .toggle.on { background: var(--accent); }
+
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+
+  .toggle.on::after { transform: translateX(18px); }
+
+  /* Win overlay */
+  #win-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,18,0.85);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    backdrop-filter: blur(6px);
+  }
+
+  #win-overlay.show { display: flex; }
+
+  .win-card {
+    background: var(--surface);
+    border: 1.5px solid var(--tile-border);
+    border-radius: 24px;
+    padding: 36px 28px;
+    text-align: center;
+    max-width: 320px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    animation: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes popIn {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .win-emoji { font-size: 52px; margin-bottom: 12px; display: block; }
+  .win-title { font-size: 26px; font-weight: 700; margin-bottom: 6px; color: var(--win); }
+  .win-sub { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+
+  .win-stats {
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+    margin-bottom: 20px;
+  }
+
+  .win-stat-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .win-stat-val {
+    font-family: 'Space Mono', monospace;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--accent2);
+  }
+
+  .win-actions { display: flex; gap: 10px; margin-top: 8px; }
+
+  /* Share toast */
+  #toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--win);
+    color: #0f0f14;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 10px 22px;
+    border-radius: 30px;
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 200;
+  }
+
+  #toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo">Puzzle</span>
+  <h1>Slide &amp; Fun</h1>
+</header>
+
+<div id="sound-row">
+  <span class="sound-label">Sound</span>
+  <button class="toggle on" id="sound-toggle" onclick="toggleSound()" aria-label="Toggle sound"></button>
+</div>
+
+<div class="stats">
+  <div class="stat-box">
+    <div class="stat-label">Moves</div>
+    <div class="stat-value accent" id="moves">0</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-label">Time</div>
+    <div class="stat-value" id="timer">0:00</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-label">Best</div>
+    <div class="stat-value" id="best">—</div>
+  </div>
+</div>
+
+<div class="difficulty-row">
+  <button class="diff-btn active" data-size="3" onclick="setDifficulty(3,this)">3×3</button>
+  <button class="diff-btn" data-size="4" onclick="setDifficulty(4,this)">4×4</button>
+  <button class="diff-btn" data-size="5" onclick="setDifficulty(5,this)">5×5</button>
+  <button class="diff-btn" data-size="6" onclick="setDifficulty(6,this)">6×6</button>
+</div>
+
+<div id="board-wrap">
+  <div id="board"></div>
+</div>
+
+<div id="actions">
+  <button class="btn btn-secondary" onclick="shuffleBoard()">Shuffle</button>
+  <button class="btn btn-primary" onclick="newGame()">New Game</button>
+</div>
+
+<div id="win-overlay">
+  <div class="win-card">
+    <span class="win-emoji">🎉</span>
+    <div class="win-title">Solved!</div>
+    <div class="win-sub" id="win-sub">Puzzle complete</div>
+    <div class="win-stats">
+      <div>
+        <div class="win-stat-label">Moves</div>
+        <div class="win-stat-val" id="win-moves">0</div>
+      </div>
+      <div>
+        <div class="win-stat-label">Time</div>
+        <div class="win-stat-val" id="win-time">0:00</div>
+      </div>
+    </div>
+    <div class="win-actions">
+      <button class="btn btn-secondary" onclick="shareResult()" style="font-size:13px">📤 Share</button>
+      <button class="btn btn-primary" onclick="closeWin()">Play Again</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast">Link copied!</div>
+
+<script>
+  // ── Audio Engine (Web Audio API — no file downloads needed) ──
+  let audioCtx = null;
+  let soundOn = true;
+
+  function getAudioCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtx;
+  }
+
+  function playTone(freq, type, duration, vol = 0.18) {
+    if (!soundOn) return;
+    try {
+      const ctx = getAudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(vol, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + duration);
+    } catch(e) {}
+  }
+
+  function playSlide() { playTone(300, 'sine', 0.08, 0.12); }
+  function playCorrect() { playTone(520, 'sine', 0.12, 0.15); }
+  function playWin() {
+    [523, 659, 784, 1047].forEach((f, i) => {
+      setTimeout(() => playTone(f, 'sine', 0.25, 0.2), i * 100);
+    });
+  }
+
+  function toggleSound() {
+    soundOn = !soundOn;
+    const btn = document.getElementById('sound-toggle');
+    btn.classList.toggle('on', soundOn);
+  }
+
+  // ── Game State ──
+  let size = 3;
+  let tiles = [];
+  let emptyIdx = size * size - 1;
+  let moves = 0;
+  let seconds = 0;
+  let timerInterval = null;
+  let running = false;
+  let best = {};
+
+  function setDifficulty(s, btn) {
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    size = s;
+    newGame();
+  }
+
+  function getFontSize() {
+    if (size === 3) return '28px';
+    if (size === 4) return '22px';
+    if (size === 5) return '16px';
+    return '13px';
+  }
+
+  function isSolvable(arr) {
+    let inv = 0;
+    const flat = arr.filter(x => x !== 0);
+    for (let i = 0; i < flat.length; i++)
+      for (let j = i + 1; j < flat.length; j++)
+        if (flat[i] > flat[j]) inv++;
+    if (size % 2 === 1) return inv % 2 === 0;
+    const emptyRow = Math.floor(arr.indexOf(0) / size);
+    const rowFromBottom = size - emptyRow;
+    return (rowFromBottom % 2 === 0) ? (inv % 2 === 1) : (inv % 2 === 0);
+  }
+
+  function newGame() {
+    stopTimer();
+    moves = 0; seconds = 0; running = false;
+    updateMoves(); updateTimer(); updateBest();
+
+    const total = size * size;
+    tiles = Array.from({length: total}, (_, i) => (i + 1) % total);
+
+    do {
+      for (let i = tiles.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+      }
+    } while (!isSolvable(tiles) || isSolved());
+
+    emptyIdx = tiles.indexOf(0);
+    renderBoard();
+  }
+
+  function shuffleBoard() { newGame(); }
+
+  function renderBoard() {
+    const board = document.getElementById('board');
+    board.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+    board.innerHTML = '';
+
+    tiles.forEach((val, idx) => {
+      const tile = document.createElement('div');
+      tile.className = 'tile' + (val === 0 ? ' empty' : '');
+
+      if (val !== 0) {
+        if (idx === val - 1) tile.classList.add('correct');
+
+        const num = document.createElement('span');
+        num.className = 'tile-num';
+        num.textContent = val;
+        num.style.fontSize = getFontSize();
+
+        const dot = document.createElement('div');
+        dot.className = 'tile-dot';
+
+        tile.appendChild(num);
+        tile.appendChild(dot);
+        tile.addEventListener('click', () => clickTile(idx));
+
+        let tx = 0, ty = 0;
+        tile.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, {passive:true});
+        tile.addEventListener('touchend', e => {
+          const dx = e.changedTouches[0].clientX - tx;
+          const dy = e.changedTouches[0].clientY - ty;
+          if (Math.abs(dx) < 5 && Math.abs(dy) < 5) clickTile(idx);
+        }, {passive:true});
+      }
+
+      board.appendChild(tile);
+    });
+  }
+
+  function clickTile(idx) {
+    if (!canMove(idx)) return;
+
+    if (!running) { running = true; startTimer(); }
+
+    [tiles[idx], tiles[emptyIdx]] = [tiles[emptyIdx], tiles[idx]];
+    emptyIdx = idx;
+    moves++;
+    updateMoves();
+
+    const isNowCorrect = tiles[idx] === idx + 1;
+    if (isNowCorrect) playCorrect(); else playSlide();
+
+    renderBoard();
+
+    if (isSolved()) {
+      stopTimer();
+      running = false;
+      const key = `${size}`;
+      if (!best[key] || seconds < best[key].seconds) {
+        best[key] = { seconds, moves };
+        updateBest();
+      }
+      playWin();
+      setTimeout(showWin, 300);
+    }
+  }
+
+  function canMove(idx) {
+    const row = Math.floor(idx / size), col = idx % size;
+    const eRow = Math.floor(emptyIdx / size), eCol = emptyIdx % size;
+    return (row === eRow && Math.abs(col - eCol) === 1) ||
+           (col === eCol && Math.abs(row - eRow) === 1);
+  }
+
+  function isSolved() {
+    for (let i = 0; i < tiles.length - 1; i++)
+      if (tiles[i] !== i + 1) return false;
+    return tiles[tiles.length - 1] === 0;
+  }
+
+  function startTimer() {
+    timerInterval = setInterval(() => { seconds++; updateTimer(); }, 1000);
+  }
+
+  function stopTimer() { clearInterval(timerInterval); timerInterval = null; }
+  function updateTimer() { document.getElementById('timer').textContent = formatTime(seconds); }
+  function updateMoves() { document.getElementById('moves').textContent = moves; }
+
+  function updateBest() {
+    const key = `${size}`;
+    document.getElementById('best').textContent = best[key] ? formatTime(best[key].seconds) : '—';
+  }
+
+  function formatTime(s) {
+    return `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
+  }
+
+  function showWin() {
+    document.getElementById('win-moves').textContent = moves;
+    document.getElementById('win-time').textContent = formatTime(seconds);
+    const key = `${size}`;
+    const isBest = best[key] && best[key].seconds === seconds && best[key].moves === moves;
+    document.getElementById('win-sub').textContent = isBest ? '🏆 New best time!' : `${size}×${size} puzzle complete`;
+    document.getElementById('win-overlay').classList.add('show');
+  }
+
+  function closeWin() {
+    document.getElementById('win-overlay').classList.remove('show');
+    newGame();
+  }
+
+  // ── Share ──
+  function shareResult() {
+    const time = formatTime(seconds);
+    const text = `🧩 I solved the ${size}×${size} Slide & Fun puzzle in ${time} with ${moves} moves!\nCan you beat me? 👉 https://slide-and-fun.netlify.app/`;
+
+    if (navigator.share) {
+      navigator.share({ title: 'Slide & Fun', text, url: 'https://slide-and-fun.netlify.app/' })
+        .catch(() => copyToClipboard(text));
+    } else {
+      copyToClipboard(text);
+    }
+  }
+
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!'))
+      .catch(() => showToast('Share: ' + window.location.href));
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  // ── Keyboard ──
+  document.addEventListener('keydown', e => {
+    const eRow = Math.floor(emptyIdx / size), eCol = emptyIdx % size;
+    let target = -1;
+    if (e.key === 'ArrowUp'    && eRow < size-1) target = emptyIdx + size;
+    if (e.key === 'ArrowDown'  && eRow > 0)      target = emptyIdx - size;
+    if (e.key === 'ArrowLeft'  && eCol < size-1) target = emptyIdx + 1;
+    if (e.key === 'ArrowRight' && eCol > 0)      target = emptyIdx - 1;
+    if (target !== -1) { e.preventDefault(); clickTile(target); }
+  });
+
+  newGame();
+</script>
+</body>
+</html>
