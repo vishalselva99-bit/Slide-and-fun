@@ -1,7 +1,8 @@
   // ── Mode Switcher (Number / Image) ──
   function switchMode(mode) {
-    document.getElementById('nav-number').classList.toggle('active', mode === 'number');
-    document.getElementById('nav-image').classList.toggle('active', mode === 'image');
+    document.querySelectorAll('.nav-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
     if (mode === 'image') {
       openImagePuzzle();
     } else {
@@ -760,7 +761,8 @@
   }
 
   function openImagePuzzle() {
-    document.getElementById('img-puzzle-overlay').classList.add('show');
+    document.getElementById('number-puzzle-view').classList.add('hidden');
+    document.getElementById('image-puzzle-view').classList.remove('hidden');
     renderSampleThumbs();
     // Load default sample if no image loaded yet
     if (!ipImageSrc) {
@@ -781,11 +783,13 @@
   }
 
   function closeImagePuzzle() {
-    document.getElementById('img-puzzle-overlay').classList.remove('show');
+    document.getElementById('image-puzzle-view').classList.add('hidden');
+    document.getElementById('number-puzzle-view').classList.remove('hidden');
     stopIPTimer();
     // Reset header nav
-    document.getElementById('nav-number').classList.add('active');
-    document.getElementById('nav-image').classList.remove('active');
+    document.querySelectorAll('.nav-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mode === 'number');
+    });
   }
 
   // ── IP Game Logic ──
@@ -987,7 +991,7 @@
 
   // Keyboard support for image puzzle
   document.addEventListener('keydown', e => {
-    if (!document.getElementById('img-puzzle-overlay').classList.contains('show')) return;
+    if (document.getElementById('image-puzzle-view').classList.contains('hidden')) return;
     const eRow = Math.floor(ipEmptyIdx / ipSize), eCol = ipEmptyIdx % ipSize;
     let target = -1;
     if (e.key === 'ArrowUp'    && eRow < ipSize-1) target = ipEmptyIdx + ipSize;
@@ -995,4 +999,9 @@
     if (e.key === 'ArrowLeft'  && eCol < ipSize-1) target = ipEmptyIdx + 1;
     if (e.key === 'ArrowRight' && eCol > 0)        target = ipEmptyIdx - 1;
     if (target !== -1) { e.preventDefault(); ipClickTile(target); }
+  });
+
+  // Footer year
+  document.querySelectorAll('.footer-year').forEach(el => {
+    el.textContent = new Date().getFullYear();
   });

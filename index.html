@@ -23,15 +23,15 @@
 </head>
 <body>
 
-<header>
+<header class="app-header">
   <div class="header-top">
     <span class="logo">Puzzle</span>
     <nav class="header-nav">
-      <button class="nav-tab active" id="nav-number" onclick="switchMode('number')">
+      <button class="nav-tab active" data-mode="number" onclick="switchMode('number')">
         <span class="nav-icon">🔢</span>
         <span class="nav-label">Number</span>
       </button>
-      <button class="nav-tab" id="nav-image" onclick="switchMode('image')">
+      <button class="nav-tab" data-mode="image" onclick="switchMode('image')">
         <span class="nav-icon">🖼️</span>
         <span class="nav-label">Image</span>
       </button>
@@ -39,6 +39,9 @@
   </div>
   <h1>Slide &amp; Fun</h1>
 </header>
+
+<!-- ── Number Puzzle View ── -->
+<div id="number-puzzle-view">
 
 <!-- Controls: Sound + Theme -->
 <div id="controls-row">
@@ -114,6 +117,8 @@
 <div class="hs-row">
   <button class="hs-link" onclick="showHSPanel()">🏆 View All High Scores</button>
 </div>
+
+</div><!-- end number-puzzle-view -->
 
 <!-- Time Limit Modal -->
 <div id="time-modal-overlay">
@@ -195,77 +200,65 @@
   </div>
 </div>
 
-<!-- ── Image Puzzle Page Overlay ── -->
-<div id="img-puzzle-overlay">
+<!-- ── Image Puzzle View ── -->
+<div id="image-puzzle-view" class="hidden">
 
-  <div id="img-puzzle-page">
-    <!-- Header -->
-    <div class="ip-header">
-      <button class="ip-back-btn" onclick="closeImagePuzzle()">← Back</button>
-      <div class="ip-title-group">
-        <span class="logo">Puzzle</span>
-        <h1>Image Puzzle</h1>
-      </div>
-      <div style="width:60px"></div>
+  <!-- Image source controls -->
+  <div class="ip-source-row">
+    <button class="ip-src-btn active" id="ip-src-default" onclick="selectImageSource('default',this)">🎨 Samples</button>
+    <button class="ip-src-btn" id="ip-src-upload" onclick="document.getElementById('ip-file-input').click()">📁 Upload</button>
+    <input type="file" id="ip-file-input" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
+  </div>
+
+  <!-- Sample images grid (shown when source=default) -->
+  <div id="ip-samples-grid" class="ip-samples-grid">
+    <!-- Populated dynamically from PUZZLE_ASSETS in script.js -->
+  </div>
+
+  <!-- IP Stats row -->
+  <div class="ip-stats">
+    <div class="ip-stat-box">
+      <div class="stat-label">Moves</div>
+      <div class="stat-value accent" id="ip-moves">0</div>
     </div>
-
-    <!-- Image source controls -->
-    <div class="ip-source-row">
-      <button class="ip-src-btn active" id="ip-src-default" onclick="selectImageSource('default',this)">🎨 Samples</button>
-      <button class="ip-src-btn" id="ip-src-upload" onclick="document.getElementById('ip-file-input').click()">📁 Upload</button>
-      <input type="file" id="ip-file-input" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
+    <div class="ip-stat-box">
+      <div class="stat-label">Time</div>
+      <div class="stat-value" id="ip-timer">0:00</div>
     </div>
-
-    <!-- Sample images grid (shown when source=default) -->
-    <div id="ip-samples-grid" class="ip-samples-grid">
-      <!-- Populated dynamically from PUZZLE_ASSETS in script.js -->
+    <div class="ip-stat-box">
+      <div class="stat-label">Grid</div>
+      <div class="stat-value" id="ip-grid-label">3×3</div>
     </div>
+  </div>
 
-    <!-- IP Stats row -->
-    <div class="ip-stats">
-      <div class="ip-stat-box">
-        <div class="stat-label">Moves</div>
-        <div class="stat-value accent" id="ip-moves">0</div>
-      </div>
-      <div class="ip-stat-box">
-        <div class="stat-label">Time</div>
-        <div class="stat-value" id="ip-timer">0:00</div>
-      </div>
-      <div class="ip-stat-box">
-        <div class="stat-label">Grid</div>
-        <div class="stat-value" id="ip-grid-label">3×3</div>
-      </div>
+  <!-- Difficulty row -->
+  <div class="difficulty-row" style="margin-bottom:10px">
+    <span class="diff-label">Level</span>
+    <select class="diff-select" id="ip-diff-select" onchange="setIPDifficulty(parseInt(this.value))">
+      <option value="3">3×3 — Easy</option>
+      <option value="4">4×4 — Medium</option>
+      <option value="5">5×5 — Hard</option>
+      <option value="6">6×6 — Expert</option>
+    </select>
+    <button class="ip-preview-btn" id="ip-preview-btn" onmousedown="showIPPreview()" onmouseup="hideIPPreview()" ontouchstart="showIPPreview()" ontouchend="hideIPPreview()">👁 Show</button>
+  </div>
+
+  <!-- Board -->
+  <div id="ip-board-wrap">
+    <div id="ip-board"></div>
+    <!-- Preview overlay -->
+    <div id="ip-preview-overlay">
+      <canvas id="ip-preview-canvas"></canvas>
     </div>
+  </div>
 
-    <!-- Difficulty row -->
-    <div class="difficulty-row" style="margin-bottom:10px">
-      <span class="diff-label">Level</span>
-      <select class="diff-select" id="ip-diff-select" onchange="setIPDifficulty(parseInt(this.value))">
-        <option value="3">3×3 — Easy</option>
-        <option value="4">4×4 — Medium</option>
-        <option value="5">5×5 — Hard</option>
-        <option value="6">6×6 — Expert</option>
-      </select>
-      <button class="ip-preview-btn" id="ip-preview-btn" onmousedown="showIPPreview()" onmouseup="hideIPPreview()" ontouchstart="showIPPreview()" ontouchend="hideIPPreview()">👁 Show</button>
-    </div>
+  <!-- Actions -->
+  <div id="ip-actions">
+    <button class="btn btn-secondary" onclick="ipShuffle()">Shuffle</button>
+    <button class="btn btn-primary" onclick="ipNewGame(true)">New Game</button>
+  </div>
 
-    <!-- Board -->
-    <div id="ip-board-wrap">
-      <div id="ip-board"></div>
-      <!-- Preview overlay -->
-      <div id="ip-preview-overlay">
-        <canvas id="ip-preview-canvas"></canvas>
-      </div>
-    </div>
-
-    <!-- Actions -->
-    <div id="actions" style="margin-top:12px">
-      <button class="btn btn-secondary" onclick="ipShuffle()">Shuffle</button>
-      <button class="btn btn-primary" onclick="ipNewGame(true)">New Game</button>
-    </div>
-
-  </div><!-- end ip-page -->
-</div><!-- end overlay -->
+</div><!-- end image-puzzle-view -->
 
 <!-- IP Win Overlay -->
 <div id="ip-win-overlay">
@@ -290,6 +283,20 @@
 </div>
 
 <div id="toast">Link copied!</div>
+
+<footer class="site-footer">
+  <div class="footer-top">
+    <span class="logo">Puzzle</span>
+    <p class="footer-tagline">A free sliding tile puzzle — play instantly on any device, no download needed.</p>
+  </div>
+  <nav class="footer-links">
+    <a href="#" onclick="switchMode('number'); return false;">Number Puzzle</a>
+    <a href="#" onclick="switchMode('image'); return false;">Image Puzzle</a>
+    <a href="#" onclick="showHSPanel(); return false;">High Scores</a>
+    <a href="#" onclick="document.querySelector('.app-header').scrollIntoView({behavior:'smooth'}); return false;">Back to Top</a>
+  </nav>
+  <p class="footer-copy">© <span class="footer-year"></span> Slide &amp; Fun. All rights reserved.</p>
+</footer>
 
 <script src="script.js"></script>
 </body>
