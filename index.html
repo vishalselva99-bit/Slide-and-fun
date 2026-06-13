@@ -81,9 +81,7 @@
     <option value="4">4×4 — Medium</option>
     <option value="5">5×5 — Hard</option>
     <option value="6">6×6 — Expert</option>
-    <option value="7">7×7 — Master</option>
-    <option value="8">8×8 — Insane</option>
-    <option value="9">9×9 — Nightmare</option>
+    
   </select>
   <select class="mode-select" id="mode-select" onchange="onModeChange(this.value)">
     <option value="normal">🎮 Normal</option>
@@ -110,6 +108,7 @@
 <!-- Actions -->
 <div id="actions">
   <button class="btn btn-secondary" onclick="shuffleBoard()">Shuffle</button>
+  <button class="btn btn-hint" id="hint-btn" onclick="showHint()">💡 Hint</button>
   <button class="btn btn-primary" onclick="newGame(true)">New Game</button>
 </div>
 
@@ -255,6 +254,8 @@
   <!-- Actions -->
   <div id="ip-actions">
     <button class="btn btn-secondary" onclick="ipShuffle()">Shuffle</button>
+    <button class="btn btn-hint" id="ip-hint-btn" onclick="ipShowHint()">💡 Hint</button>
+    <button class="btn btn-solve" id="ip-solve-btn" onclick="ipAutoSolve()">⚡ Solve</button>
     <button class="btn btn-primary" onclick="ipNewGame(true)">New Game</button>
   </div>
 
