@@ -105,16 +105,23 @@
     return map[size] || '9px';
   }
 
-  function isSolvable(arr) {
+  // Generic 15-puzzle solvability check.
+  // arr: flat array of tile values (a permutation), n: grid size (n x n),
+  // blankVal: the value used to represent the empty/blank tile.
+  function isSolvableArr(arr, n, blankVal) {
     let inv = 0;
-    const flat = arr.filter(x => x !== 0);
+    const flat = arr.filter(x => x !== blankVal);
     for (let i = 0; i < flat.length; i++)
       for (let j = i + 1; j < flat.length; j++)
         if (flat[i] > flat[j]) inv++;
-    if (size % 2 === 1) return inv % 2 === 0;
-    const emptyRow = Math.floor(arr.indexOf(0) / size);
-    const rowFromBottom = size - emptyRow;
+    if (n % 2 === 1) return inv % 2 === 0;
+    const blankRow = Math.floor(arr.indexOf(blankVal) / n);
+    const rowFromBottom = n - blankRow;
     return (rowFromBottom % 2 === 0) ? (inv % 2 === 1) : (inv % 2 === 0);
+  }
+
+  function isSolvable(arr) {
+    return isSolvableArr(arr, size, 0);
   }
 
   function newGame(btnClick=false) {
@@ -534,10 +541,10 @@
   // Built-in canvas-drawn images use draw: drawFnName instead of src.
   // ════════════════════════════════════════════════
   const PUZZLE_ASSETS = [
-    { name: 'Sunset',  draw: drawSunset  },
-    { name: 'Ocean',   draw: drawOcean   },
-    { name: 'Forest',  draw: drawForest  },
-    { name: 'Space',   draw: drawSpace   },
+    { name: 'Sunset',  src: 'assets/sunset.jpg'  },
+    { name: 'Ocean',   src: 'assets/ocean.jpg'   },
+    { name: 'Forest',  src: 'assets/forest.jpg'  },
+    { name: 'Space',   src: 'assets/space.jpg'   },
     { name: 'Mountains', src: 'assets/mountains.jpg' }
     // Example of file-based assets (uncomment and add files to assets/puzzles/):
     // { name: 'Mountains', src: 'assets/puzzles/mountains.jpg' },
@@ -550,120 +557,6 @@
   const ipSamples = PUZZLE_ASSETS;
   let ipSelectedSampleIdx = 0;
 
-  function drawSunset(ctx, w, h) {
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#1a0533'); g.addColorStop(0.35, '#b3194a');
-    g.addColorStop(0.6, '#f7733a'); g.addColorStop(1, '#ffd580');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-    // sun
-    ctx.fillStyle = '#ffe066';
-    ctx.beginPath(); ctx.arc(w*0.5, h*0.62, w*0.11, 0, Math.PI*2); ctx.fill();
-    // horizon reflections
-    ctx.fillStyle = 'rgba(255,160,60,0.18)';
-    for(let i=0;i<5;i++){ctx.fillRect(w*0.3+i*w*0.08,h*0.65+i*3,w*0.04,3);}
-    // clouds
-    ctx.fillStyle='rgba(255,220,180,0.22)';
-    [[0.15,0.22,0.18,0.07],[0.6,0.18,0.25,0.06],[0.4,0.32,0.15,0.05]].forEach(([x,y,rw,rh])=>{
-      ctx.beginPath();ctx.ellipse(w*x,h*y,w*rw,h*rh,0,0,Math.PI*2);ctx.fill();
-    });
-    // silhouette
-    ctx.fillStyle='#1a0533';
-    ctx.beginPath();ctx.moveTo(0,h*0.82);
-    for(let x=0;x<=w;x+=w/20){ctx.lineTo(x,h*0.82-Math.sin(x/w*Math.PI*3)*h*0.07);}
-    ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();ctx.fill();
-  }
-
-  function drawOcean(ctx, w, h) {
-    const g = ctx.createLinearGradient(0,0,0,h);
-    g.addColorStop(0,'#0a2463'); g.addColorStop(0.45,'#1e5fa8'); g.addColorStop(0.45,'#1a78c2'); g.addColorStop(1,'#0d3b6e');
-    ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
-    // sky clouds
-    ctx.fillStyle='rgba(255,255,255,0.12)';
-    [[0.2,0.1,0.2,0.06],[0.65,0.15,0.22,0.05],[0.45,0.07,0.15,0.04]].forEach(([x,y,rw,rh])=>{
-      ctx.beginPath();ctx.ellipse(w*x,h*y,w*rw,h*rh,0,0,Math.PI*2);ctx.fill();
-    });
-    // waves
-    for(let i=0;i<7;i++){
-      const y=h*(0.5+i*0.07);
-      ctx.strokeStyle=`rgba(255,255,255,${0.12-i*0.01})`;
-      ctx.lineWidth=1.5;
-      ctx.beginPath();ctx.moveTo(0,y);
-      for(let x=0;x<w;x+=4){ctx.lineTo(x,y+Math.sin(x/w*Math.PI*5+i)*4);}
-      ctx.stroke();
-    }
-    // foam highlights
-    ctx.strokeStyle='rgba(255,255,255,0.25)'; ctx.lineWidth=1;
-    for(let i=0;i<4;i++){
-      const y=h*(0.52+i*0.1);
-      ctx.beginPath();ctx.moveTo(w*0.05,y);
-      for(let x=0;x<w*0.9;x+=6){ctx.lineTo(w*0.05+x,y+Math.sin(x/w*Math.PI*8+i*2)*2);}
-      ctx.stroke();
-    }
-  }
-
-  function drawForest(ctx, w, h) {
-    const g = ctx.createLinearGradient(0,0,0,h);
-    g.addColorStop(0,'#0a2e1a'); g.addColorStop(0.4,'#1a5c2e'); g.addColorStop(1,'#0d3320');
-    ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
-    // light rays
-    ctx.save();
-    for(let i=0;i<5;i++){
-      const rx=w*(0.15+i*0.18);
-      const gg=ctx.createLinearGradient(rx,0,rx+20,h);
-      gg.addColorStop(0,'rgba(180,255,120,0.08)'); gg.addColorStop(1,'transparent');
-      ctx.fillStyle=gg;
-      ctx.beginPath();ctx.moveTo(rx-5,0);ctx.lineTo(rx+5,0);ctx.lineTo(rx+30,h);ctx.lineTo(rx+20,h);ctx.closePath();ctx.fill();
-    }
-    ctx.restore();
-    // trees
-    function tree(x,h2,col){
-      ctx.fillStyle=col||'#0d4020';
-      ctx.beginPath();ctx.moveTo(x,h*0.9);ctx.lineTo(x-w*0.06,h*0.9);ctx.lineTo(x,h*0.1+h2);ctx.closePath();ctx.fill();
-      ctx.beginPath();ctx.moveTo(x,h*0.75);ctx.lineTo(x-w*0.09,h*0.75);ctx.lineTo(x,h*0.2+h2);ctx.closePath();ctx.fill();
-      ctx.beginPath();ctx.moveTo(x,h*0.6);ctx.lineTo(x-w*0.07,h*0.6);ctx.lineTo(x,h*0.3+h2);ctx.closePath();ctx.fill();
-    }
-    [0.15,0.35,0.55,0.75,0.9].forEach((px,i)=>tree(w*px,i%2?h*0.05:0,i%3?'#0f5028':'#1a6030'));
-    ctx.fillStyle='#082010';
-    ctx.fillRect(0,h*0.88,w,h*0.12);
-    // fireflies
-    ctx.fillStyle='rgba(220,255,100,0.7)';
-    [[0.3,0.5],[0.6,0.4],[0.15,0.65],[0.8,0.55],[0.5,0.7]].forEach(([x,y])=>{
-      ctx.beginPath();ctx.arc(w*x,h*y,1.5,0,Math.PI*2);ctx.fill();
-    });
-  }
-
-  function drawSpace(ctx, w, h) {
-    ctx.fillStyle='#04040f'; ctx.fillRect(0,0,w,h);
-    // stars
-    for(let i=0;i<180;i++){
-      const x=Math.random()*w, y=Math.random()*h;
-      const r=Math.random()*1.4;
-      ctx.fillStyle=`rgba(255,255,255,${0.3+Math.random()*0.7})`;
-      ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
-    }
-    // nebula
-    const nb=ctx.createRadialGradient(w*0.55,h*0.4,0,w*0.55,h*0.4,w*0.4);
-    nb.addColorStop(0,'rgba(120,40,200,0.25)');nb.addColorStop(0.5,'rgba(40,80,200,0.12)');nb.addColorStop(1,'transparent');
-    ctx.fillStyle=nb;ctx.fillRect(0,0,w,h);
-    const nb2=ctx.createRadialGradient(w*0.3,h*0.6,0,w*0.3,h*0.6,w*0.3);
-    nb2.addColorStop(0,'rgba(200,60,100,0.18)');nb2.addColorStop(1,'transparent');
-    ctx.fillStyle=nb2;ctx.fillRect(0,0,w,h);
-    // planet
-    const pg=ctx.createRadialGradient(w*0.7,h*0.25,0,w*0.7,h*0.25,w*0.13);
-    pg.addColorStop(0,'#7ad4ff');pg.addColorStop(0.5,'#3a80c0');pg.addColorStop(1,'#0a2850');
-    ctx.fillStyle=pg;
-    ctx.beginPath();ctx.arc(w*0.7,h*0.25,w*0.13,0,Math.PI*2);ctx.fill();
-    // ring
-    ctx.save();ctx.translate(w*0.7,h*0.25);ctx.rotate(-0.3);
-    ctx.strokeStyle='rgba(180,220,255,0.35)';ctx.lineWidth=4;
-    ctx.beginPath();ctx.ellipse(0,0,w*0.2,w*0.05,0,0,Math.PI*2);ctx.stroke();
-    ctx.restore();
-    // shooting star
-    const sg=ctx.createLinearGradient(w*0.05,h*0.15,w*0.3,h*0.3);
-    sg.addColorStop(0,'transparent');sg.addColorStop(1,'rgba(255,255,200,0.6)');
-    ctx.strokeStyle=sg;ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.moveTo(w*0.05,h*0.15);ctx.lineTo(w*0.3,h*0.3);ctx.stroke();
-  }
 
   function renderSampleThumbs() {
     const grid = document.getElementById('ip-samples-grid');
@@ -822,17 +715,29 @@
     document.getElementById('ip-timer').textContent = '0:00';
   }
 
+  function ipIsSolved() {
+    for (let i = 0; i < ipTiles.length; i++)
+      if (ipTiles[i] !== i) return false;
+    return true;
+  }
+
   function ipShuffleTiles() {
     const n = ipSize * ipSize;
-    // Do many random valid moves from solved state
-    let eIdx = n - 1;
-    for (let i = 0; i < n * 30; i++) {
-      const neighbors = getIPNeighbors(eIdx);
-      const pick = neighbors[Math.floor(Math.random() * neighbors.length)];
-      [ipTiles[eIdx], ipTiles[pick]] = [ipTiles[pick], ipTiles[eIdx]];
-      eIdx = pick;
-    }
-    ipEmptyIdx = eIdx;
+    const blankVal = n - 1;
+
+    do {
+      // Do many random valid moves from solved state
+      ipTiles = Array.from({length: n}, (_, i) => i);
+      let eIdx = n - 1;
+      for (let i = 0; i < n * 30; i++) {
+        const neighbors = getIPNeighbors(eIdx);
+        const pick = neighbors[Math.floor(Math.random() * neighbors.length)];
+        [ipTiles[eIdx], ipTiles[pick]] = [ipTiles[pick], ipTiles[eIdx]];
+        eIdx = pick;
+      }
+      ipEmptyIdx = eIdx;
+      // Verify the resulting layout is actually solvable and not already solved
+    } while (!isSolvableArr(ipTiles, ipSize, blankVal) || ipIsSolved());
   }
 
   function getIPNeighbors(idx) {
