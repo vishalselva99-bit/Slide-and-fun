@@ -1,4 +1,4 @@
-  // ── Mode Switcher (Number / Image) ──
+// ── Mode Switcher (Number / Image) ──
   function switchMode(mode) {
     document.querySelectorAll('.nav-tab').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.mode === mode);
@@ -9,6 +9,26 @@
       closeImagePuzzle();
     }
   }
+
+  // ── Hint / Auto-Solve state (declared early to avoid TDZ errors) ──
+  let hintTimeout = null;
+  let solveInterval = null;
+  let solveMoves = [];
+  let ipHintTimeout = null;
+  let ipSolveInterval = null;
+
+  // ── Hint limits (5 per game) ──
+  const MAX_HINTS = 5;
+  let hintsUsed = 0;
+  let ipHintsUsed = 0;
+
+  // ── Auto-solve flag (suppress best score save) ──
+  let isSolving = false;
+  let isIPSolving = false;
+
+  // Thin stubs — delegate to real implementations defined later in the file
+  function cancelAutoSolve(f)   { if (solveInterval)   { clearInterval(solveInterval);   solveInterval = null; } const sb = document.getElementById('solve-btn');    const hb = document.getElementById('hint-btn');    if (sb) sb.disabled = false; if (hb) hb.disabled = false; }
+  function cancelIPAutoSolve(f) { if (ipSolveInterval) { clearInterval(ipSolveInterval); ipSolveInterval = null; } const sb = document.getElementById('ip-solve-btn'); const hb = document.getElementById('ip-hint-btn'); if (sb) sb.disabled = false; if (hb) hb.disabled = false; }
 
   // ── Audio Engine ──
   let audioCtx = null;
@@ -125,11 +145,12 @@
   }
 
   function newGame(btnClick=false) {
+    cancelAutoSolve();
     stopTimer();
     if (challengeMode && btnClick){ stopChallengeCountdown();}
     if(btnClick){onModeChange("normal");}
-    moves = 0; seconds = 0; running = false;
-    updateMoves(); updateTimer(); updateBestDisplay();
+    moves = 0; seconds = 0; running = false; hintsUsed = 0; isSolving = false;
+    updateMoves(); updateTimer(); updateBestDisplay(); updateHintBtn();
 
     const total = size * size;
     tiles = Array.from({length: total}, (_, i) => (i + 1) % total);
@@ -196,7 +217,7 @@
   function clickTile(idx) {
     if (!canMove(idx)) return;
 
-    if (!running) { running = true; startTimer(); }
+    if (!running && !isSolving) { running = true; startTimer(); }
 
     // Determine animation direction for the moving tile
     const tileRow = Math.floor(idx / size), tileCol = idx % size;
@@ -233,6 +254,7 @@
   }
 
   function checkAndSaveBest() {
+    if (isSolving) return false; // don't count auto-solve as a best score
     const key = `${size}`;
     const prev = best[key];
     const isNew = !prev || seconds < prev.seconds || (seconds === prev.seconds && moves < prev.moves);
@@ -264,6 +286,22 @@
   function stopTimer()   { clearInterval(timerInterval); timerInterval = null; }
   function updateTimer() { document.getElementById('timer').textContent = formatTime(seconds); }
   function updateMoves() { document.getElementById('moves').textContent = moves; }
+
+  function updateHintBtn() {
+    const btn = document.getElementById('hint-btn');
+    if (!btn) return;
+    const left = MAX_HINTS - hintsUsed;
+    btn.textContent = left > 0 ? `💡 Hint (${left})` : '💡 No Hints';
+    btn.disabled = left <= 0;
+  }
+
+  function updateIPHintBtn() {
+    const btn = document.getElementById('ip-hint-btn');
+    if (!btn) return;
+    const left = MAX_HINTS - ipHintsUsed;
+    btn.textContent = left > 0 ? `💡 Hint (${left})` : '💡 No Hints';
+    btn.disabled = left <= 0;
+  }
 
   function formatTime(s) {
     return `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
@@ -693,10 +731,12 @@
   }
 
   function ipNewGame(doShuffle = true) {
+    cancelIPAutoSolve();
     stopIPTimer();
-    ipMoves = 0; ipSeconds = 0; ipRunning = false;
+    ipMoves = 0; ipSeconds = 0; ipRunning = false; ipHintsUsed = 0; isIPSolving = false;
     document.getElementById('ip-moves').textContent = '0';
     document.getElementById('ip-timer').textContent = '0:00';
+    updateIPHintBtn();
 
     const n = ipSize * ipSize;
     ipTiles = Array.from({length: n}, (_, i) => i);
@@ -710,9 +750,10 @@
     ipShuffleTiles();
     renderIPBoard();
     stopIPTimer();
-    ipMoves = 0; ipSeconds = 0; ipRunning = false;
+    ipMoves = 0; ipSeconds = 0; ipRunning = false; ipHintsUsed = 0; isIPSolving = false;
     document.getElementById('ip-moves').textContent = '0';
     document.getElementById('ip-timer').textContent = '0:00';
+    updateIPHintBtn();
   }
 
   function ipIsSolved() {
@@ -905,6 +946,291 @@
     if (e.key === 'ArrowRight' && eCol > 0)        target = ipEmptyIdx - 1;
     if (target !== -1) { e.preventDefault(); ipClickTile(target); }
   });
+
+  // ════════════════════════════════════════════════
+  // ── HINT & AUTO-SOLVE — NUMBER PUZZLE ──
+  // ════════════════════════════════════════════════
+
+  // Manhattan distance heuristic
+  function manhattan(arr, n) {
+    let h = 0;
+    for (let i = 0; i < arr.length; i++) {
+      const v = arr[i];
+      if (v === 0) continue;
+      const goal = v - 1; // goal index for tile v
+      h += Math.abs(Math.floor(i / n) - Math.floor(goal / n)) +
+           Math.abs((i % n) - (goal % n));
+    }
+    return h;
+  }
+
+  // IDA* solver — returns array of emptyIdx positions representing each swap step
+  // Returns null if puzzle is already solved or can't solve quickly
+  function idaStar(startTiles, n) {
+    const goalStr = Array.from({length: n*n}, (_, i) => (i + 1) % (n * n)).join(',');
+    const startStr = startTiles.join(',');
+    if (startStr === goalStr) return [];
+
+    // Cap: only use IDA* for small grids; larger grids use greedy
+    if (n > 4) return null;
+
+    const startEmpty = startTiles.indexOf(0);
+    let bound = manhattan(startTiles, n);
+    const path = [{ tiles: startTiles.slice(), empty: startEmpty }];
+
+    function search(g, bound) {
+      const node = path[path.length - 1];
+      const f = g + manhattan(node.tiles, n);
+      if (f > bound) return f;
+      if (manhattan(node.tiles, n) === 0) return -1; // found
+
+      let minT = Infinity;
+      const row = Math.floor(node.empty / n), col = node.empty % n;
+      const neighbors = [];
+      if (row > 0) neighbors.push(node.empty - n);
+      if (row < n - 1) neighbors.push(node.empty + n);
+      if (col > 0) neighbors.push(node.empty - 1);
+      if (col < n - 1) neighbors.push(node.empty + 1);
+
+      for (const nb of neighbors) {
+        // Avoid going back
+        if (path.length > 1 && path[path.length - 2].empty === nb) continue;
+
+        const newTiles = node.tiles.slice();
+        [newTiles[node.empty], newTiles[nb]] = [newTiles[nb], newTiles[node.empty]];
+        path.push({ tiles: newTiles, empty: nb });
+        const t = search(g + 1, bound);
+        if (t === -1) return -1;
+        if (t < minT) minT = t;
+        path.pop();
+
+        // Safety: don't spend too long
+        if (path.length > 200) return Infinity;
+      }
+      return minT;
+    }
+
+    for (let iter = 0; iter < 80; iter++) {
+      const t = search(0, bound);
+      if (t === -1) return path.map(s => s.empty);
+      if (t === Infinity) return null;
+      bound = t;
+    }
+    return null;
+  }
+
+  // Greedy BFS (beam search) for larger grids — returns partial or full move sequence
+  function greedySolve(startTiles, n) {
+    const goalStr = Array.from({length: n*n}, (_, i) => (i + 1) % (n * n)).join(',');
+    let cur = startTiles.slice();
+    let empty = cur.indexOf(0);
+    const moves = [empty];
+    const visited = new Set([cur.join(',')]);
+
+    for (let step = 0; step < n * n * 60; step++) {
+      if (cur.join(',') === goalStr) break;
+      const row = Math.floor(empty / n), col = empty % n;
+      const neighbors = [];
+      if (row > 0) neighbors.push(empty - n);
+      if (row < n - 1) neighbors.push(empty + n);
+      if (col > 0) neighbors.push(empty - 1);
+      if (col < n - 1) neighbors.push(empty + 1);
+
+      // Pick neighbor that gives best heuristic
+      let best = null, bestH = Infinity;
+      for (const nb of neighbors) {
+        const next = cur.slice();
+        [next[empty], next[nb]] = [next[nb], next[empty]];
+        const key = next.join(',');
+        if (visited.has(key)) continue;
+        const h = manhattan(next, n);
+        if (h < bestH) { bestH = h; best = { nb, next, key }; }
+      }
+      if (!best) break;
+      visited.add(best.key);
+      cur = best.next;
+      empty = best.nb;
+      moves.push(empty);
+    }
+    return moves;
+  }
+
+  function showHint() {
+    if (isSolved()) return;
+    if (hintsUsed >= MAX_HINTS) return;
+    _cancelAutoSolve();
+
+    hintsUsed++;
+    updateHintBtn();
+
+    // Get best next move using IDA* (small) or greedy (large)
+    let movePath = idaStar(tiles.slice(), size);
+    if (!movePath) movePath = greedySolve(tiles.slice(), size);
+    if (!movePath || movePath.length < 2) return;
+
+    // movePath[0] is current emptyIdx; movePath[1] is next emptyIdx after the swap
+    // The tile that moves is currently at movePath[1]
+    const tileToMove = movePath[1];
+
+    // Highlight that tile
+    const boardEl = document.getElementById('board');
+    const tileDivs = boardEl.children;
+    if (tileDivs[tileToMove]) {
+      tileDivs[tileToMove].classList.add('hint-highlight');
+      clearTimeout(hintTimeout);
+      hintTimeout = setTimeout(() => {
+        tileDivs[tileToMove] && tileDivs[tileToMove].classList.remove('hint-highlight');
+      }, 1800);
+    }
+    playTone(440, 'sine', 0.15, 0.12);
+  }
+
+  function autoSolve() {
+    if (isSolved()) return;
+    _cancelAutoSolve();
+
+    // Disable buttons during solve
+    document.getElementById('solve-btn').disabled = true;
+    document.getElementById('hint-btn').disabled = true;
+
+    let movePath = idaStar(tiles.slice(), size);
+    if (!movePath) movePath = greedySolve(tiles.slice(), size);
+    if (!movePath || movePath.length < 2) {
+      document.getElementById('solve-btn').disabled = false;
+      document.getElementById('hint-btn').disabled = false;
+      return;
+    }
+    // movePath is sequence of emptyIdx positions; each step swaps current empty with next
+    solveMoves = movePath.slice(1); // next empty positions
+    let step = 0;
+    isSolving = true; // mark as auto-solve so best score is not saved
+
+    // Pause the timer during auto-solve and restore it after
+    stopTimer();
+
+    solveInterval = setInterval(() => {
+      if (step >= solveMoves.length || isSolved()) {
+        _cancelAutoSolve(true);
+        isSolving = false;
+        return;
+      }
+      const nextEmpty = solveMoves[step++];
+      // nextEmpty is where empty will go; the tile currently there moves to current empty
+      clickTile(nextEmpty);
+    }, 1000); // 1 second gap between each move
+  }
+
+  function _cancelAutoSolve(f) { cancelAutoSolve(f); }
+
+  // ════════════════════════════════════════════════
+  // ── HINT & AUTO-SOLVE — IMAGE PUZZLE ──
+  // ════════════════════════════════════════════════
+
+  function ipManhattan(arr, n) {
+    const blankVal = n * n - 1;
+    let h = 0;
+    for (let i = 0; i < arr.length; i++) {
+      const v = arr[i];
+      if (v === blankVal) continue;
+      h += Math.abs(Math.floor(i / n) - Math.floor(v / n)) +
+           Math.abs((i % n) - (v % n));
+    }
+    return h;
+  }
+
+  function ipGreedySolve(startTiles, n) {
+    const blankVal = n * n - 1;
+    let cur = startTiles.slice();
+    let empty = cur.indexOf(blankVal);
+    const moves = [empty];
+    const visited = new Set([cur.join(',')]);
+
+    for (let step = 0; step < n * n * 60; step++) {
+      // Check solved
+      let solved = true;
+      for (let i = 0; i < cur.length; i++) { if (cur[i] !== i) { solved = false; break; } }
+      if (solved) break;
+
+      const row = Math.floor(empty / n), col = empty % n;
+      const neighbors = [];
+      if (row > 0) neighbors.push(empty - n);
+      if (row < n - 1) neighbors.push(empty + n);
+      if (col > 0) neighbors.push(empty - 1);
+      if (col < n - 1) neighbors.push(empty + 1);
+
+      let best = null, bestH = Infinity;
+      for (const nb of neighbors) {
+        const next = cur.slice();
+        [next[empty], next[nb]] = [next[nb], next[empty]];
+        const key = next.join(',');
+        if (visited.has(key)) continue;
+        const h = ipManhattan(next, n);
+        if (h < bestH) { bestH = h; best = { nb, next, key }; }
+      }
+      if (!best) break;
+      visited.add(best.key);
+      cur = best.next;
+      empty = best.nb;
+      moves.push(empty);
+    }
+    return moves;
+  }
+
+  function ipShowHint() {
+    if (ipCheckWin()) return;
+    if (ipHintsUsed >= MAX_HINTS) return;
+    _cancelIPAutoSolve();
+
+    ipHintsUsed++;
+    updateIPHintBtn();
+
+    const movePath = ipGreedySolve(ipTiles.slice(), ipSize);
+    if (!movePath || movePath.length < 2) return;
+
+    const tileToMove = movePath[1];
+    const boardEl = document.getElementById('ip-board');
+    const tileDivs = boardEl.children;
+    if (tileDivs[tileToMove]) {
+      tileDivs[tileToMove].classList.add('hint-highlight');
+      clearTimeout(ipHintTimeout);
+      ipHintTimeout = setTimeout(() => {
+        tileDivs[tileToMove] && tileDivs[tileToMove].classList.remove('hint-highlight');
+      }, 1800);
+    }
+    playTone(440, 'sine', 0.15, 0.12);
+  }
+
+  function ipAutoSolve() {
+    if (ipCheckWin()) return;
+    _cancelIPAutoSolve();
+
+    document.getElementById('ip-solve-btn').disabled = true;
+    document.getElementById('ip-hint-btn').disabled = true;
+
+    const movePath = ipGreedySolve(ipTiles.slice(), ipSize);
+    if (!movePath || movePath.length < 2) {
+      _cancelIPAutoSolve();
+      return;
+    }
+
+    const steps = movePath.slice(1);
+    let step = 0;
+    isIPSolving = true;
+
+    // Pause timer during auto-solve
+    stopIPTimer();
+
+    ipSolveInterval = setInterval(() => {
+      if (step >= steps.length || ipCheckWin()) {
+        _cancelIPAutoSolve(true);
+        isIPSolving = false;
+        return;
+      }
+      ipClickTile(steps[step++]);
+    }, 1000); // 1 second gap between each move
+  }
+
+  function _cancelIPAutoSolve(f) { cancelIPAutoSolve(f); }
 
   // Footer year
   document.querySelectorAll('.footer-year').forEach(el => {

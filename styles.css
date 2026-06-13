@@ -651,8 +651,16 @@
     width: 100%;
     max-width: 400px;
     display: flex;
-    gap: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
     margin-bottom: 12px;
+  }
+
+  #actions .btn, #ip-actions .btn {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+    padding: 13px 6px;
+    font-size: 13px;
   }
 
   #ip-actions {
@@ -683,6 +691,79 @@
     background: var(--surface);
     color: var(--muted);
     border: 1.5px solid var(--tile-border);
+  }
+
+  /* Hint button */
+  .btn-hint {
+    background: rgba(247,197,106,0.12);
+    color: var(--accent2);
+    border: 1.5px solid rgba(247,197,106,0.35);
+    font-size: 13px;
+  }
+
+  .btn-hint:hover { background: rgba(247,197,106,0.2); border-color: var(--accent2); }
+  .btn-hint:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  body.theme-neon .btn-hint {
+    background: rgba(255,0,229,0.1);
+    color: #ff00e5;
+    border-color: rgba(255,0,229,0.3);
+  }
+
+  body.theme-wood .btn-hint {
+    background: rgba(240,184,67,0.12);
+    color: var(--accent2);
+    border-color: rgba(240,184,67,0.35);
+  }
+
+  /* Solve button */
+  .btn-solve {
+    background: rgba(106,247,168,0.12);
+    color: var(--win);
+    border: 1.5px solid rgba(106,247,168,0.35);
+    font-size: 13px;
+  }
+
+  .btn-solve:hover { background: rgba(106,247,168,0.2); border-color: var(--win); }
+  .btn-solve:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  body.theme-neon .btn-solve {
+    background: rgba(0,255,153,0.1);
+    color: #00ff99;
+    border-color: rgba(0,255,153,0.3);
+  }
+
+  body.theme-wood .btn-solve {
+    background: rgba(126,200,80,0.12);
+    color: #7ec850;
+    border-color: rgba(126,200,80,0.35);
+  }
+
+  /* Hint highlight on tiles */
+  @keyframes hintPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(247,197,106,0.7), var(--tile-shadow); transform: scale(1); }
+    40%  { box-shadow: 0 0 0 6px rgba(247,197,106,0.3), var(--tile-shadow); transform: scale(1.06); }
+    70%  { box-shadow: 0 0 0 10px rgba(247,197,106,0.1), var(--tile-shadow); transform: scale(1.04); }
+    100% { box-shadow: 0 0 0 0 rgba(247,197,106,0), var(--tile-shadow); transform: scale(1); }
+  }
+
+  .tile.hint-highlight,
+  .ip-tile.hint-highlight {
+    animation: hintPulse 0.55s ease-out 0s 3 !important;
+    border-color: var(--accent2) !important;
+    z-index: 2;
+  }
+
+  body.theme-neon .tile.hint-highlight,
+  body.theme-neon .ip-tile.hint-highlight {
+    border-color: #ff00e5 !important;
+    animation: hintPulseNeon 0.55s ease-out 0s 3 !important;
+  }
+
+  @keyframes hintPulseNeon {
+    0%   { box-shadow: 0 0 0 0 rgba(255,0,229,0.7); transform: scale(1); }
+    40%  { box-shadow: 0 0 0 6px rgba(255,0,229,0.3); transform: scale(1.06); }
+    100% { box-shadow: 0 0 0 0 rgba(255,0,229,0); transform: scale(1); }
   }
 
   /* ── Win Overlay ── */
